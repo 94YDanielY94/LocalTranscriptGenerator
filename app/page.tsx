@@ -33,12 +33,17 @@ export interface Student {
   age: number;
   academicYears?: string;
   template: "G9-G12" | "G10-G12" | "G11-G12" | "G12";
+  termSystem?: "semester" | "quarter"; // NEW: semester (2 terms) or quarter (4 terms)
   grades: {
     subject: string;
     grades: {
       [gradeLevel: string]: {
         semester1: number;
         semester2: number;
+        quarter1?: number; // For quarter system
+        quarter2?: number;
+        quarter3?: number;
+        quarter4?: number;
         yearAvg: number;
         total: number;
       };
@@ -48,9 +53,15 @@ export interface Student {
     [gradeLevel: string]: {
       semester1: string;
       semester2: string;
+      quarter1?: string;
+      quarter2?: string;
+      quarter3?: string;
+      quarter4?: string;
       yearAvg: string;
     };
   };
+  customSubjects?: string[]; // NEW: custom subjects added by user
+  deletedSubjects?: { [gradeLevel: string]: string[] }; // NEW: subjects hidden per grade
 }
 
 export default function TranscriptGenerator() {
@@ -244,26 +255,21 @@ export default function TranscriptGenerator() {
                     size="sm"
                     variant="outline"
                     disabled={!currentStudent}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!currentStudent) return;
-                      const exportData = {
-                        student: currentStudent,
-                        grades: currentStudent.grades,
-                        conduct: currentStudent.conduct,
-                        exportDate: new Date().toISOString(),
-                      };
-                      const dataStr = JSON.stringify(exportData, null, 2);
-                      const dataBlob = new Blob([dataStr], {
-                        type: "application/json",
-                      });
-                      const url = URL.createObjectURL(dataBlob);
-
+                      // Export single student as direct object (no wrapper)
+                      const blob = await FileManager.exportSingleStudent(currentStudent);
+                      if (!blob) {
+                        alert("Failed to export student data");
+                        return;
+                      }
+                      const url = URL.createObjectURL(blob);
                       const link = document.createElement("a");
                       link.href = url;
                       link.download = `${currentStudent.name.replace(
                         /\s+/g,
                         "_"
-                      )}_grades_${new Date().toISOString().split("T")[0]}.json`;
+                      )}_${new Date().toISOString().split("T")[0]}.json`;
                       document.body.appendChild(link);
                       link.click();
                       document.body.removeChild(link);
@@ -290,16 +296,32 @@ export default function TranscriptGenerator() {
                             const importData = JSON.parse(
                               ev.target?.result as string
                             );
-                            if (!importData.student || !importData.grades) {
+                            
+                            // Handle multiple formats:
+                            // 1. Direct student object (new format)
+                            // 2. Legacy format with { student, grades, conduct }
+                            let studentData: Partial<Student>;
+                            
+                            if (importData.id && importData.name && importData.template) {
+                              // Direct student object format
+                              studentData = importData;
+                            } else if (importData.student && importData.grades) {
+                              // Legacy format
+                              studentData = {
+                                ...importData.student,
+                                grades: importData.grades,
+                                conduct: importData.conduct,
+                              };
+                            } else {
                               throw new Error("Invalid file format.");
                             }
-                            // Update the current student in the students array
+                            
+                            // Update the current student with imported data
                             await addOrUpdateStudent({
                               ...currentStudent,
-                              ...importData.student,
-                              grades: importData.grades,
-                              conduct: importData.conduct,
-                            });
+                              ...studentData,
+                              id: currentStudent.id, // Keep original ID
+                            } as Student);
                             alert("Student data imported successfully!");
                           } catch (error) {
                             alert(

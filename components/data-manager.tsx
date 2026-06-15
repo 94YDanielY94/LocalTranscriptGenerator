@@ -85,34 +85,30 @@ export function DataManager({
 
     try {
       const content = await file.text();
-      let studentsData: Student[];
-
-      // Parse and validate JSON
-      try {
-        const parsed = JSON.parse(content);
-        if (!Array.isArray(parsed))
-          throw new Error("Invalid file format: Expected an array.");
-        // Optionally, add more validation here
-        studentsData = parsed;
-      } catch (err) {
-        throw new Error("Invalid JSON structure.");
+      
+      // Use FileManager to handle all import formats
+      // Supports: direct array, wrapped { id, students[] }, and single student object
+      const result = await FileManager.importStudents(content);
+      
+      if (!result.success) {
+        throw new Error(result.message);
       }
-
-      // Save to local storage (or use FileManager if it handles this)
-      localStorage.setItem("students", JSON.stringify(studentsData));
-      onImport(studentsData);
-      setImportSuccess("Data imported successfully!");
+      
+      // Reload from storage to get the imported data
+      const importedStudents = await FileManager.readStudents();
+      onImport(importedStudents);
+      setImportSuccess(result.message);
 
       console.log(
         "[v0] File import completed:",
-        studentsData.length,
+        result.count,
         "students"
       );
-    } catch (error) {
-      console.error("[v0] Error importing file:", error);
+    
+      console.error("[v0] Error importing file:", Error);
       setImportError(
         `Import failed: ${
-          error instanceof Error ? error.message : "Unknown error"
+          Error instanceof Error ? Error.message : "Unknown error"
         }`
       );
     } finally {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calculator, Edit2 } from "lucide-react"
 import type { Student } from "@/app/page"
 
 interface StudentFormProps {
@@ -20,9 +21,13 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
     gender: "" as "Male" | "Female" | "",
     age: "",
     template: "G9-G12" as Student["template"],
+    termSystem: "semester" as "semester" | "quarter",
   })
 
   const [nameError, setNameError] = useState("")
+  const [useManualYear, setUseManualYear] = useState(false)
+  const [manualStartYear, setManualStartYear] = useState("")
+  const [manualEndYear, setManualEndYear] = useState("")
 
   useEffect(() => {
     if (student) {
@@ -31,14 +36,37 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
         gender: student.gender,
         age: student.age.toString(),
         template: student.template,
+        termSystem: student.termSystem || "semester",
       })
+      // Check if student has custom academic years
+      if (student.academicYears) {
+        const autoCalculated = calculateAcademicYears(student.template)
+        if (student.academicYears !== autoCalculated) {
+          setUseManualYear(true)
+          const [start, end] = student.academicYears.split("-")
+          setManualStartYear(start || "")
+          setManualEndYear(end || "")
+        } else {
+          setUseManualYear(false)
+          setManualStartYear("")
+          setManualEndYear("")
+        }
+      } else {
+        setUseManualYear(false)
+        setManualStartYear("")
+        setManualEndYear("")
+      }
     } else {
       setFormData({
         name: "",
         gender: "",
         age: "",
         template: "G9-G12",
+        termSystem: "semester",
       })
+      setUseManualYear(false)
+      setManualStartYear("")
+      setManualEndYear("")
     }
   }, [student])
 
@@ -80,19 +108,9 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
     }
   }
 
-  const getAgeRestrictions = (template: Student["template"]): { min: number; max: number; schoolType: string } => {
-    switch (template) {
-      case "G9-G12":
-        return { min: 14, max: 19, schoolType: "High School (4 years)" }
-      case "G10-G12":
-        return { min: 15, max: 18, schoolType: "High School (3 years)" }
-      case "G11-G12":
-        return { min: 16, max: 18, schoolType: "High School (2 years)" }
-      case "G12":
-        return { min: 17, max: 19, schoolType: "Grade 12 Only" }
-      default:
-        return { min: 14, max: 19, schoolType: "High School" }
-    }
+  const getAgeRestrictions = (): { min: number } => {
+    // Only restrict ages under 10 for safety
+    return { min: 10 }
   }
 
   const calculateAcademicYears = (template: Student["template"]): string => {
@@ -134,11 +152,19 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
       return
     }
 
-    const ageRestrictions = getAgeRestrictions(formData.template)
+    const ageRestrictions = getAgeRestrictions()
     const age = Number.parseInt(formData.age)
-    if (age < ageRestrictions.min || age > ageRestrictions.max) {
-      alert(`Age must be between ${ageRestrictions.min} and ${ageRestrictions.max} for ${ageRestrictions.schoolType}`)
+    if (age < ageRestrictions.min) {
+      alert(`Age must be at least ${ageRestrictions.min} years old`)
       return
+    }
+
+    // Determine academic years
+    let academicYears: string
+    if (useManualYear && manualStartYear && manualEndYear) {
+      academicYears = `${manualStartYear}-${manualEndYear}`
+    } else {
+      academicYears = calculateAcademicYears(formData.template)
     }
 
     const studentData: Student = {
@@ -147,13 +173,17 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
       gender: formData.gender as "Male" | "Female",
       age: age,
       template: formData.template,
+      termSystem: formData.termSystem,
+      academicYears,
       grades: student?.grades || [],
+      customSubjects: student?.customSubjects || [],
+      deletedSubjects: student?.deletedSubjects || {},
     }
 
     onSave(studentData)
   }
 
-  const currentAgeRestrictions = getAgeRestrictions(formData.template)
+  const currentAgeRestrictions = getAgeRestrictions()
 
   return (
     <Card>
@@ -202,12 +232,10 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
                 onChange={(e) => setFormData((prev) => ({ ...prev, age: e.target.value }))}
                 placeholder="Enter age"
                 min={currentAgeRestrictions.min}
-                max={currentAgeRestrictions.max}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Age range for {currentAgeRestrictions.schoolType}: {currentAgeRestrictions.min}-
-                {currentAgeRestrictions.max} years
+                Minimum age: {currentAgeRestrictions.min} years
               </p>
             </div>
 
@@ -228,16 +256,94 @@ export function StudentForm({ student, onSave }: StudentFormProps) {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="termSystem">Term System</Label>
+              <Select
+                value={formData.termSystem}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, termSystem: value as "semester" | "quarter" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="semester">Semester (2 terms per year)</SelectItem>
+                  <SelectItem value="quarter">Quarter (4 terms per year)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formData.termSystem === "quarter" ? "Q1, Q2, Q3, Q4 per grade" : "Sem 1, Sem 2 per grade"}
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Academic Years (Auto-calculated)</Label>
-            <div className="p-3 bg-muted rounded-lg">
-              <span className="font-mono">{calculateAcademicYears(formData.template)}</span>
-              <p className="text-sm text-muted-foreground mt-1">
-                Based on current year ({new Date().getFullYear()}) and selected template
-              </p>
+            <div className="flex items-center justify-between">
+              <Label>Academic Years</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (useManualYear) {
+                    // Switch to auto mode
+                    setUseManualYear(false)
+                    setManualStartYear("")
+                    setManualEndYear("")
+                  } else {
+                    // Switch to manual mode - prefill with auto values
+                    const autoYears = calculateAcademicYears(formData.template)
+                    const [start, end] = autoYears.split("-")
+                    setManualStartYear(start)
+                    setManualEndYear(end)
+                    setUseManualYear(true)
+                  }
+                }}
+                className="flex items-center gap-1"
+              >
+                {useManualYear ? (
+                  <><Calculator className="w-3 h-3" /> Auto Calculate</>
+                ) : (
+                  <><Edit2 className="w-3 h-3" /> Manual Entry</>
+                )}
+              </Button>
             </div>
+            
+            {useManualYear ? (
+              <div className="p-3 bg-muted rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={manualStartYear}
+                    onChange={(e) => setManualStartYear(e.target.value)}
+                    placeholder="Start Year"
+                    className="w-28 font-mono"
+                    min={1900}
+                    max={2100}
+                  />
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="number"
+                    value={manualEndYear}
+                    onChange={(e) => setManualEndYear(e.target.value)}
+                    placeholder="End Year"
+                    className="w-28 font-mono"
+                    min={1900}
+                    max={2100}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Manual entry mode - enter custom academic years
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-muted rounded-lg">
+                <span className="font-mono">{calculateAcademicYears(formData.template)}</span>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Based on current year ({new Date().getFullYear()}) and selected template
+                </p>
+              </div>
+            )}
           </div>
 
           <Button type="submit" className="w-full">

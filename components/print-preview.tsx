@@ -57,6 +57,12 @@ export function PrintPreview({ student }: PrintPreviewProps) {
     return subject.grades[gradeLevel];
   };
 
+  // Check if a subject is deleted for a specific grade level
+  const isSubjectDeletedForGrade = (subjectName: string, gradeLevel: string): boolean => {
+    if (!student.deletedSubjects) return false;
+    return (student.deletedSubjects[gradeLevel] || []).includes(subjectName);
+  };
+
   const getConductData = (gradeLevel: string) => {
     if (!student.conduct || !student.conduct[gradeLevel]) {
       return { semester1: "A", semester2: "A", yearAvg: "A" };
@@ -238,22 +244,23 @@ export function PrintPreview({ student }: PrintPreviewProps) {
                       </td>
                       {gradeLevels.map((gradeLevel) => {
                         const gradeData = getGradeData(subject, gradeLevel);
+                        const isDeleted = isSubjectDeletedForGrade(subject.subject, gradeLevel);
                         return (
                           <React.Fragment key={gradeLevel}>
                             <td className="border border-black p-1 text-center font-mono text-xs">
-                              {gradeData.semester1 > 0
+                              {isDeleted ? "-" : (gradeData.semester1 > 0
                                 ? gradeData.semester1.toFixed(1)
-                                : "-"}
+                                : "-")}
                             </td>
                             <td className="border border-black p-1 text-center font-mono text-xs">
-                              {gradeData.semester2 > 0
+                              {isDeleted ? "-" : (gradeData.semester2 > 0
                                 ? gradeData.semester2.toFixed(1)
-                                : "-"}
+                                : "-")}
                             </td>
                             <td className="border border-black p-1 text-center font-mono font-bold text-xs">
-                              {gradeData.yearAvg > 0
+                              {isDeleted ? "-" : (gradeData.yearAvg > 0
                                 ? gradeData.yearAvg.toFixed(1)
-                                : "-"}
+                                : "-")}
                             </td>
                           </React.Fragment>
                         );

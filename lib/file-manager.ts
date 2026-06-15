@@ -75,10 +75,16 @@ export class FileManager {
   }
 
   // Export students to downloadable JSON
+  // Multiple students: wrapped with { id, students[] }
   static async exportStudents(): Promise<Blob | null> {
     try {
       const students = await this.readStudents()
-      const content = JSON.stringify(students, null, 2)
+      const exportData = {
+        id: `export-${Date.now()}`,
+        exportDate: new Date().toISOString(),
+        students: students
+      }
+      const content = JSON.stringify(exportData, null, 2)
       return new Blob([content], { type: "application/json" })
     } catch (error) {
       console.error("[v0] Error exporting students:", error)
@@ -86,30 +92,59 @@ export class FileManager {
     }
   }
 
+  // Export single student as direct object (no wrapper)
+  static async exportSingleStudent(student: Student): Promise<Blob | null> {
+    try {
+      const content = JSON.stringify(student, null, 2)
+      return new Blob([content], { type: "application/json" })
+    } catch (error) {
+      console.error("[v0] Error exporting single student:", error)
+      return null
+    }
+  }
+
   // Import students from JSON content
-  static async importStudents(jsonContent: string): Promise<{ success: boolean; message: string; count?: number }> {
+  // Handles multiple formats:
+  // - Direct array: Student[]
+  // - Wrapped array: { id, students: Student[] }
+  // - Single student object: Student
+  static async importStudents(jsonContent: string): Promise<{ success: boolean; message: string; count?: number; students?: Student[] }> {
     try {
       const parsedData = JSON.parse(jsonContent)
+      let studentsData: Student[]
 
-      if (!Array.isArray(parsedData)) {
-        return { success: false, message: "Invalid file format: Expected an array of students" }
+      // Detect format
+      if (Array.isArray(parsedData)) {
+        // Direct array format (legacy)
+        studentsData = parsedData
+      } else if (parsedData.students && Array.isArray(parsedData.students)) {
+        // Wrapped format: { id, students[] }
+        studentsData = parsedData.students
+      } else if (parsedData.id && parsedData.name && parsedData.template) {
+        // Single student object
+        studentsData = [parsedData]
+      } else {
+        return { success: false, message: "Invalid file format: Could not detect student data" }
       }
 
       // Validate each student object
-      for (const student of parsedData) {
+      for (const student of studentsData) {
         if (
           !student.id ||
           !student.name ||
           !student.gender ||
           typeof student.age !== "number" ||
-          !student.academicYears ||
-          !student.template ||
-          !student.grades
+          !student.template
         ) {
           return { success: false, message: "Invalid student data structure" }
         }
 
-        // Validate grades structure
+        // Ensure grades array exists (may be empty)
+        if (!student.grades) {
+          student.grades = []
+        }
+
+        // Validate grades structure if present
         for (const grade of student.grades) {
           if (!grade.subject || !grade.grades) {
             return { success: false, message: "Invalid grades data structure" }
@@ -117,12 +152,13 @@ export class FileManager {
         }
       }
 
-      const success = await this.writeStudents(parsedData)
+      const success = await this.writeStudents(studentsData)
       if (success) {
         return {
           success: true,
-          message: `Successfully imported ${parsedData.length} student(s)`,
-          count: parsedData.length,
+          message: `Successfully imported ${studentsData.length} student(s)`,
+          count: studentsData.length,
+          students: studentsData,
         }
       } else {
         return { success: false, message: "Failed to save imported data" }
