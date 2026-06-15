@@ -1,102 +1,66 @@
 # Local Transcript Generator
 
-A local web app for creating, editing, previewing, and exporting student transcripts using browser storage.
+A local web app for automating student transcript creation, preview and printing for schools.
 
-## Overview
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-blue?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 
-This Next.js application lets users manage student records and academic grades locally in the browser. It supports:
+## Why This Exists
 
-- Adding and editing student information
-- Selecting transcript templates for G9–G12, G10–G12, G11–G12, and G12
-- Entering grades by subject, semester, and grade level
-- Previewing a printable transcript layout
-- Exporting the transcript as a Word document (`.docx`)
-- Exporting and importing all data as JSON
-- Persisting student records in browser localStorage
+I built this after watching my teacher struggle to print my transcript correctly. The school staff were using different Microsoft Word templates for each grade level (G9-G12, G10-G12, etc.), manually copying student data between files and unorganized file structure. Mistakes were common and the process was painfully slow.
+
+This app replaces that workflow with a single tool that handles all grade templates, stores student records locally, and exports print-ready transcripts in one click.
+
+![Transcript preview showing the Record entry](docs/images/transcript-preview1.png)
+![Transcript preview showing the Score entry](docs/images/transcript-preview3.png)
+![Transcript preview showing the print layout](docs/images/transcript-preview2.png)
 
 ## Features
 
-- Student form with name, gender, age, and template selection
-- Grade input flow that adapts to the selected grade template
-- Transcript preview with printable layout and export options
-- Data management panel for JSON export, import, and clearing all data
-- Search, filter, and manage saved student records
-
-## Tech Stack
-
-- Next.js 15
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- `docx` for Word export
-- `file-saver` for client-side downloads
-- `lucide-react` icons
-- `next-themes` for theming support
+- Grade-specific templates (G9-G12, G10-G12, G11-G12, G12) that automatically adapt the input form
+- Student records saved locally in the browser with no backend or internet required
+- Print-ready transcript preview that matches the school's official format
+- One-click export to Word document (.docx) for printing or sharing
+- JSON export and import for backing up or transferring student data between machines
+- Search and filter to quickly find students across saved records
 
 ## Getting Started
 
-Install dependencies:
+### Prerequisites
+
+- Node.js (version 18 or higher)
+
+### Installation
 
 ```bash
-npm install
+git clone https://github.com/94YDanielY94/LocalTranscriptGenerator.git
+cd LocalTranscriptGenerator
+bun install
+bun run dev
 ```
 
-Run the development server:
+Open the app at [http://localhost:3000](http://localhost:3000).
+
+### Production Build
 
 ```bash
-npm run dev
+bun run build
+bun start
 ```
 
-Open the app at:
+## How It Works
 
-```text
-http://localhost:3000
-```
+1. Create a new student record with their name, gender, age, and grade template
+2. Switch to the Grades tab and enter academic scores by subject and semester
+3. Use the Preview tab to see the formatted transcript exactly as it will print
+4. Export as a Word document or print directly from the browser
+5. Use Data Management to export all records as JSON (for backup) or import from another machine
 
-Build for production:
-
-```bash
-npm run build
-```
-
-Start the production server:
-
-```bash
-npm start
-```
-
-## Usage
-
-1. Open the app and create a new student record.
-2. Enter the student full name, gender, age, and transcript template.
-3. Save the student and switch to the Grades tab to input academic scores.
-4. Use the Preview & Export tab to view the transcript and print it.
-5. Export student data as JSON or import an existing JSON dataset from the Data Management tab.
-6. Clear all data if needed using the Data Management controls.
-
-## Data Storage
-
-Student records are stored in browser localStorage under the key `transcript-students`.
-
-This means data is saved locally in the current browser profile and does not require a backend server.
-
-## Project Structure
-
-- `app/page.tsx` - main app shell with tabs, filters, and student state management
-- `components/student-form.tsx` - student details and validation
-- `components/grades-input.tsx` - grade matrix and summary calculations
-- `components/print-preview.tsx` - transcript preview and print workflow
-- `components/word-export.tsx` - export transcript to Word file
-- `components/data-manager.tsx` - JSON import/export and data clearing
-- `lib/file-manager.ts` - browser storage utilities for saving and loading student records
-- `components/ui/*` - shared UI primitives for buttons, inputs, tables, cards, and alerts
-
-## Notes
-
-- Student names are validated to include first, middle, and last names.
-- Grade templates adjust the available grade years accordingly.
-- The app is intended for local use and does not send data to any external service.
+All data is stored in your browser's localStorage. Nothing is sent to any server.
 
 ## License
 
-This repository does not include a license file by default. Add one if you want to make the project open source.
+[MIT](LICENSE)
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.
